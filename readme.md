@@ -1,6 +1,4 @@
-Here is a professional, production-ready `README.md` for your project. I have structured it specifically so that a Frontend Developer (or any new team member) can set it up in 5 minutes and understand exactly how to consume your APIs.
 
----
 
 # 🚀 UdhyogSathi Backend API
 
