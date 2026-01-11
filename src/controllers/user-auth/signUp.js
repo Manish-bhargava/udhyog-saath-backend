@@ -8,10 +8,12 @@ const bcrypt = require('bcrypt');
 dotenv.config();
 
 const signup = async (req, res) => {
-  const { email, password } = req.body;
+  const { name,email, password } = req.body;
+    if(!name){
+      return res.status(400).json({ message: 'Name is required' });
+    }
 
-
-  if (!email || !password) {
+  if (!email || !password ) {
     return res.status(400).json({ message: 'Email and Password are required' });
   }
 
@@ -27,6 +29,7 @@ const signup = async (req, res) => {
 
    
     user = new User({
+      name,
       email,
       password: hashedPassword
     });
