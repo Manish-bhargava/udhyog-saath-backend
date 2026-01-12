@@ -3,11 +3,9 @@ const User = require("../../models/user"); // Import User model to update the fl
 
 exports.userOnboarding = async (req, res) => {
     try {
-        // 1. Get User ID safely (Check req.user first, then req.body)
-        // If you are using Auth Middleware, it's req.user._id
-        // If you are sending it in JSON body manually, it's req.body.userId
+
         const userId = req.user ? req.user._id : req.body.userId;
-           console.log(req.user);
+          
         if (!userId) {
             return res.status(401).json({ 
                 success: false, 
@@ -23,6 +21,7 @@ exports.userOnboarding = async (req, res) => {
 
         // 2. Check for duplicates
         const existingProfile = await Onboarding.findOne({ user: userId });
+        console.log(existingProfile);
         if (existingProfile) {
             return res.status(400).json({
                 success: false,
@@ -48,14 +47,16 @@ exports.userOnboarding = async (req, res) => {
         await newOnboarding.save();
 
         // 5. Update the User's "Onboarding" flag safely
-        await User.findByIdAndUpdate(userId, { Onboarding: true });
-
+     const updatedUser =  await User.findByIdAndUpdate(userId, 
+        { onboarding: true },{ new: true });
+       console.log(updatedUser);
+        
         res.status(201).json({
             success: true,
             message: "Onboarding Completed Successfully",
             data: newOnboarding
         });
-
+        
     } catch (error) {
         console.error("Onboarding Error:", error);
         res.status(500).json({ 

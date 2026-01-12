@@ -4,6 +4,8 @@ const userAuth=require("../../../controllers").userAuth;
 const verify=require("../../../utils/auth");
 const updateProfile = require("../../../controllers/user-auth/updateProfile");
 const changePassword = require("../../../controllers/user-auth/changePassword");
+const {getUserProfile }= require("../../../controllers/user-auth/getProfile");
+
 authRouter.use('/login',userAuth.login);
 authRouter.use('/signUp',userAuth.signup);
 authRouter.use('/logout',verify,userAuth.logout);

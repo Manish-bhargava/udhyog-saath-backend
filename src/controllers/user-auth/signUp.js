@@ -6,21 +6,17 @@ require('dotenv').config();
 const signup = async (req, res) => {
   const { name, email, password } = req.body;
 
-  // Validation
   if (!name) return res.status(400).json({ message: 'Name is required' });
   if (!email || !password) return res.status(400).json({ message: 'Email and Password are required' });
 
   try {
-    // 1. Check if user exists
     let user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // 2. Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. Create User
     user = new User({
       name,
       email,
@@ -29,22 +25,27 @@ const signup = async (req, res) => {
 
     await user.save();
 
-    // 4. Generate Token (matching your login logic)
+  
     const token = jwt.sign(
-      { email: user.email, id: user._id },
+      { email: user.email, id: user._id }, 
       process.env.JWT_SECREAT_KEY,
       { expiresIn: '24h' }
     );
 
-    // 5. Security: Don't send password back in response
+    // Set cookie (since your auth.js checks cookies first)
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', 
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
     const userData = user.toObject();
     delete userData.password;
 
-    // 6. Respond with Success & Token
     return res.status(201).json({
       message: 'User created successfully',
       status: 201,
-      token: token, // Added token here
+      token: token, 
       data: userData,
       error: null
     });
