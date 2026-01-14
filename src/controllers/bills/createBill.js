@@ -14,11 +14,11 @@ exports.createBill = async (req, res) => {
                 message: "Invalid bill type. Use /create/pakka or /create/kaccha" 
             });
         }
-        // Capitalize first letter for DB enum ("Pakka" or "Kaccha")
        
+       
+        
 
-
-        // 2. FETCH SELLER SNAPSHOT (The "Onboarding" Data)
+       
         const sellerProfile = await Onboarding.findOne({ user: userId });
 
         // Gatekeeper: You cannot make a Pakka bill without a profile
