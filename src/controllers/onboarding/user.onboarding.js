@@ -5,19 +5,31 @@ exports.userOnboarding = async (req, res) => {
     try {
 
         const userId = req.user ? req.user._id : req.body.userId;
-          
+            const { 
+            companyName, companyEmail, companyAddress, companyPhone,
+            companyLogo, companyDescription, GST, companyStamp, companySignature,
+            accountNumber, IFSC, bankName, branchName
+        } = req.body;
+           const existingProfile = await Onboarding.findOne({ user: userId });
         if (!userId) {
             return res.status(401).json({ 
                 success: false, 
                 message: "User ID missing. Are you logged in?" 
             });
         }
+        if(existingProfile){
+            const updateUser=await User.findByIdAndUpdate(userId,{...req.body},{new:true});
+            return res.status(200).json({
+                         msg:"user upadted successfully",
+                         data:updateUser
 
-        const { 
-            companyName, companyEmail, companyAddress, companyPhone,
-            companyLogo, companyDescription, GST, companyStamp, companySignature,
-            accountNumber, IFSC, bankName, branchName
-        } = req.body;
+                })
+        
+
+
+        }
+        
+      
 
         // 2. Check for duplicates
         // const existingProfile = await Onboarding.findOne({ user: userId });
