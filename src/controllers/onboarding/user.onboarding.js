@@ -20,14 +20,14 @@ exports.userOnboarding = async (req, res) => {
         } = req.body;
 
         // 2. Check for duplicates
-        const existingProfile = await Onboarding.findOne({ user: userId });
-        console.log(existingProfile);
-        if (existingProfile) {
-            return res.status(400).json({
-                success: false,
-                message: "Onboarding already completed."
-            });
-        }
+        // const existingProfile = await Onboarding.findOne({ user: userId });
+        // console.log(existingProfile);
+        // if (existingProfile) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Onboarding already completed."
+        //     });
+        // }
 
         // 3. Create the Instance
         const newOnboarding = new Onboarding({
