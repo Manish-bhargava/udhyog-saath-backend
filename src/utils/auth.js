@@ -5,6 +5,7 @@ const verify = async (req, res, next) => {
     try {
         // 1. Check for token in Headers (Frontend sends it here) or Cookies
         const authHeader = req.headers.authorization;
+        console.log(authHeader);
         let token;
 
         if (authHeader && authHeader.startsWith('Bearer ')) {

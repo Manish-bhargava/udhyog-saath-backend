@@ -4,7 +4,7 @@ const Onboarding = require("../../models/onboarding"); // Make sure to import th
 const getUserProfile= async (req, res) => {
   try {
     // 1. Fetch the User (Basic Info)
-    const user = await User.findById(req.user._id).select("name email onboarding createdAt");
+    const user = await User.findById(req.user._id).select("name email onboarding createdAt plan planExpiry aiCredits");
 
     if (!user) {
       return res.status(404).json({ 
@@ -13,13 +13,23 @@ const getUserProfile= async (req, res) => {
       });
     }
 
-    // 2. Prepare the base response object
+
+
+    
     let responseData = {
       id: user._id,
       name: user.name,
       email: user.email,
       isOnboarded: user.onboarding || false,
-      joinedAt: user.createdAt
+      joinedAt: user.createdAt,
+      plan: user.plan,
+      planExpiry: user.planExpiry,
+      aiCredits: {
+        limit: user.aiCredits.limit,
+        used: user.aiCredits.used,
+        lastReset: user.aiCredits.lastReset
+      }
+
     };
 
     // 3. If user is onboarded, fetch Company Details from Onboarding collection

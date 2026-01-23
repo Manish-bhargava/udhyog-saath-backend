@@ -17,16 +17,30 @@ exports.userOnboarding = async (req, res) => {
                 message: "User ID missing. Are you logged in?" 
             });
         }
-        if(existingProfile){
-            const updateUser=await User.findByIdAndUpdate(userId,{...req.body},{new:true});
+if (existingProfile) {
+            // 1. Update the Onboarding record (Company & Bank)
+            const updatedOnboarding = await Onboarding.findOneAndUpdate(
+                { user: userId },
+                {
+                    company: {
+                        companyName, companyEmail, companyAddress, companyPhone,
+                        companyLogo, companyDescription, GST, companyStamp, companySignature
+                    },
+                    BankDetails: {
+                        accountNumber, IFSC, bankName, branchName
+                    }
+                },
+                { new: true }
+            );
+
+            // 2. Update the User flag just in case
+            await User.findByIdAndUpdate(userId, { onboarding: true });
+
             return res.status(200).json({
-                         msg:"user upadted successfully",
-                         data:updateUser
-
-                })
-        
-
-
+                success: true,
+                msg: "User updated successfully",
+                data: updatedOnboarding // Return the onboarding data, not just user
+            });
         }
         
       

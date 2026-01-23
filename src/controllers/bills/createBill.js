@@ -1,5 +1,5 @@
-const Bill = require("../../models/bills"); // Make sure path is correct
-const Onboarding = require("../../models/onboarding"); // Make sure path is correct
+const Bill = require("../../models/bills"); 
+const Onboarding = require("../../models/onboarding"); 
 
 exports.createBill = async (req, res) => {
     try {
@@ -14,14 +14,10 @@ exports.createBill = async (req, res) => {
                 message: "Invalid bill type. Use /create/pakka or /create/kaccha" 
             });
         }
-       
-       
-        
 
-       
         const sellerProfile = await Onboarding.findOne({ user: userId });
 
-        // Gatekeeper: You cannot make a Pakka bill without a profile
+        // 2. Gatekeeper: You cannot make a Pakka bill without a profile
         if (billType === "pakka" && !sellerProfile) {
             return res.status(400).json({ 
                 success: false, 
@@ -30,8 +26,6 @@ exports.createBill = async (req, res) => {
         }
 
         // 3. PREPARE SELLER DETAILS OBJECT
-        // We copy these values PERMANENTLY into the bill.
-        // Using optional chaining (?.) and OR (||) to handle empty fields safely.
         const sellerDetailsSnapshot = {
             companyName: sellerProfile?.company?.companyName || "",
             companyEmail: sellerProfile?.company?.companyEmail || "",
@@ -43,15 +37,14 @@ exports.createBill = async (req, res) => {
             companyStamp: sellerProfile?.company?.companyStamp || "",
             companySignature: sellerProfile?.company?.companySignature || "",
             
-            // Bank Details (Needed for the footer of the bill)
+            // Bank Details
             bankName: sellerProfile?.BankDetails?.bankName || "",
             accountNumber: sellerProfile?.BankDetails?.accountNumber || "",
             IFSC: sellerProfile?.BankDetails?.IFSC || "",
             branchName: sellerProfile?.BankDetails?.branchName || ""
         };
 
-
-        // 4. PROCESS BODY DATA (Buyer + Products)
+        // 4. PROCESS BODY DATA
         const { 
             buyer, 
             products, 
@@ -59,7 +52,7 @@ exports.createBill = async (req, res) => {
             discount = 0 
         } = req.body;
 
-        // A. Validate Products Array
+        // A. Validate Products
         if (!products || products.length === 0) {
             return res.status(400).json({ success: false, message: "Please add at least one product." });
         }
@@ -68,12 +61,10 @@ exports.createBill = async (req, res) => {
         let subTotal = 0;
         
         const processedProducts = products.map(item => {
-            // Ensure numbers are actually numbers
             const rate = Number(item.rate);
             const quantity = Number(item.quantity);
             const amount = rate * quantity;
-            
-            subTotal += amount; // Add to running total
+            subTotal += amount; 
             
             return { 
                 name: item.name,
@@ -84,31 +75,41 @@ exports.createBill = async (req, res) => {
         });
 
         // C. Calculate Final Amounts
-        // Logic: (Subtotal - Discount) + Tax
         const taxableAmount = subTotal - Number(discount);
         const taxAmount = (taxableAmount * Number(gstPercentage)) / 100;
         const grandTotal = taxableAmount + taxAmount;
 
+        // ============================================================
+        // 5. GENERATE SEQUENTIAL INVOICE NUMBER (FIXED)
+        // ============================================================
+        
+        // Find the last bill created by THIS user only
+        const lastBill = await Bill.findOne({ user: userId })
+            .sort({ createdAt: -1 }); // Sort by newest first
 
-        // 5. GENERATE INVOICE NUMBER
-        // Simple format: INV-TIMESTAMP-RANDOM (Ensures uniqueness)
-        const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        let nextInvoiceNumber = "1"; // Default for a brand new user
 
+        if (lastBill && lastBill.invoiceNumber) {
+            // Check if the previous invoice number is a number (to avoid crashing on old string IDs)
+            const lastNum = parseInt(lastBill.invoiceNumber, 10);
+            
+            if (!isNaN(lastNum)) {
+                nextInvoiceNumber = (lastNum + 1).toString();
+            } else {
+                // If your DB has old random IDs like "INV-84738", we restart at 1 or handle gracefully
+                nextInvoiceNumber = "1"; 
+            }
+        }
 
         // 6. CREATE & SAVE THE BILL
         const newBill = new Bill({
             user: userId,
             billType: billType,
-            invoiceNumber: invoiceNumber,
+            invoiceNumber: nextInvoiceNumber, // Now it is 1, 2, 3...
             invoiceDate: Date.now(),
-            
-            // The Important Part: The Snapshot
-            sellerDetails: sellerDetailsSnapshot,
-
+            sellerDetails: sellerDetailsSnapshot, // Ensure Schema has this field!
             buyer: buyer,
             products: processedProducts,
-
-            // Math
             gstPercentage: Number(gstPercentage),
             discount: Number(discount),
             subTotal: subTotal,
@@ -117,7 +118,6 @@ exports.createBill = async (req, res) => {
         });
 
         await newBill.save();
-
 
         // 7. SEND SUCCESS RESPONSE
         res.status(201).json({
@@ -128,6 +128,15 @@ exports.createBill = async (req, res) => {
 
     } catch (error) {
         console.error("Create Bill Error:", error);
+
+        // Handle Rare Race Condition (Two bills created at exact same time)
+        if (error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: "A bill was generated at the exact same moment. Please try again."
+            });
+        }
+
         res.status(500).json({ 
             success: false, 
             message: "Server Error while creating bill", 
