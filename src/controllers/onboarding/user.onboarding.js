@@ -1,6 +1,6 @@
 const Onboarding = require("../../models/onboarding"); // Check this path
 const User = require("../../models/user"); // Import User model to update the flag
-const uploadImage = require("../../services/cloudinary");
+const { uploadImage } = require("../../services/cloudinary");
 exports.userOnboarding = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : req.body.userId;
@@ -17,10 +17,10 @@ exports.userOnboarding = async (req, res) => {
       bankName,
       branchName,
     } = req.body;
-    const companyLogo = await uploadImage(req.files.companyLogo?.[0]?.path);
+    const companyLogo = await uploadImage(req.files.companyLogo?.[0]?.path) || req.body.companyLogo;
     const companySignature = await uploadImage(
       req.files.companySignature?.[0]?.path,
-    );
+    ) || req.body.companySignature;
     const existingProfile = await Onboarding.findOne({ user: userId });
     if (!userId) {
       return res.status(401).json({
