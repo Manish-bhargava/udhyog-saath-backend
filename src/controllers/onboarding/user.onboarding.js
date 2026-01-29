@@ -17,10 +17,10 @@ exports.userOnboarding = async (req, res) => {
       bankName,
       branchName,
     } = req.body;
-    const companyLogo = await uploadImage(req.files.companyLogo?.[0]?.path);
+    const companyLogo = await uploadImage(req.files.companyLogo?.[0]?.path) || req.body.companyLogo;
     const companySignature = await uploadImage(
       req.files.companySignature?.[0]?.path,
-    );
+    ) || req.body.companySignature;
     const existingProfile = await Onboarding.findOne({ user: userId });
     if (!userId) {
       return res.status(401).json({
