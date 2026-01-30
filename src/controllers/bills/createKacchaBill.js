@@ -71,6 +71,7 @@ exports.createBill = async (req, res) => {
     const {
       buyer,
       products,
+      notes,
       gstPercentage = 0, // This will be ignored for Kaccha
       discount = 0, // This is the percentage (e.g., 5.0)
     } = req.body;
@@ -129,7 +130,7 @@ exports.createBill = async (req, res) => {
       sellerDetails: sellerDetailsSnapshot, // Will be empty/basic for Kaccha
       buyer: finalBuyer, // Will have no GST for Kaccha
       products: processedProducts,
-
+      notes: notes || "",
       gstPercentage: finalGstPercentage, // Will be 0 for Kaccha
       discount: discountAmount, // Stores the calculated AMOUNT
       subTotal: subTotal,

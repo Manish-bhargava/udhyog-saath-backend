@@ -33,6 +33,7 @@ const billSchema = new mongoose.Schema({
             required: function() { return this.billType === 'pakka'; }
         }      
     },
+    notes: { type: String },
     products: [{
         name: { type: String, required: true },
         rate: { type: Number, required: true },
