@@ -43,10 +43,10 @@ exports.updateKacchaBill = async (req, res) => {
 
         // Calculate Financials
         // Note: Logic follows your snippet (Discount is input %, stored as Amount)
-        const discountPercent = Number(discount);
-        const discountAmount = (newSubTotal * discountPercent) / 100;
-        
-        const taxableValue = newSubTotal - discountAmount;
+        // const discountPercent = Number(discount);
+        // const discountAmount = (newSubTotal * discountPercent) / 100;
+        const discountAmount = Number(discount);
+        const taxableValue = Math.max(0,newSubTotal - discountAmount);
 
         // GST Logic: If Kaccha -> 0. If Pakka -> Use existing percentage.
         const gstPercentage = existingBill.billType === 'kaccha' ? 0 : (existingBill.gstPercentage || 18);
