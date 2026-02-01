@@ -26,88 +26,156 @@ Current Date: ${new Date().toDateString()}.
 
 // --- TOOLS SCHEMA ---
 const toolsSchema = [
-    { 
-        type: "function", 
-        function: { 
-            name: "get_daily_sales_report", 
-            description: "Fetch a detailed list of bills for a specific date range. RETURNS: Invoice No, Client Name, Amount, and Date.",
-            parameters: {
-                type: "object",
-                properties: {
-                    startDate: { type: "string", description: "Start Date (YYYY-MM-DD)" },
-                    endDate: { type: "string", description: "End Date (YYYY-MM-DD)" }
-                },
-                required: ["startDate"]
-            }
-        } 
+  {
+    type: "function",
+    function: {
+      name: "get_daily_sales_report",
+      description:
+        "Fetch a detailed list of bills for a specific date range. RETURNS: Invoice No, Client Name, Amount, and Date.",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID of the business owner",
+          },
+          startDate: { type: "string", description: "Start Date (YYYY-MM-DD)" },
+          endDate: { type: "string", description: "End Date (YYYY-MM-DD)" },
+        },
+        required: ["userId", "startDate"],
+      },
     },
-    { type: "function", function: { name: "get_total_revenue", description: "Get total lifetime revenue." } },
-    { type: "function", function: { name: "get_monthly_comparison", description: "Compare sales between months." } },
-    { type: "function", function: { name: "get_tax_summary", description: "Get total GST collected." } },
-    { type: "function", function: { name: "get_top_products", description: "Identify top 5 selling products." } }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_total_revenue",
+      description: "Get total lifetime revenue.",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID of the business owner",
+          },
+        },
+        required: ["userId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_monthly_comparison",
+      description: "Compare sales between months.",
+    },
+    parameters: {
+      type: "object",
+      properties: {
+        userId: {
+          type: "string",
+          description: "User ID of the business owner",
+        },
+      },
+      required: ["userId"],
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_tax_summary",
+      description: "Get total GST collected.",
+    },
+    parameters: {
+      type: "object",
+      properties: {
+        userId: {
+          type: "string",
+          description: "User ID of the business owner",
+        },
+      },
+      required: ["userId"],
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_top_products",
+      description: "Identify top 5 selling products.",
+    },
+    parameters: {
+      type: "object",
+      properties: {
+        userId: {
+          type: "string",
+          description: "User ID of the business owner",
+        },
+      },
+      required: ["userId"],
+    },
+  },
 ];
 
 const chatWithAgent = async (userId, userMessage) => {
-    try {
-        // 1. First Call: Ask AI what tools it needs
-        let messages = [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage }
-        ];
+  try {
+    // 1. First Call: Ask AI what tools it needs
+    let messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ];
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini", 
-            messages: messages,
-            tools: toolsSchema,
-            tool_choice: "auto"
-        });
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: messages,
+      tools: toolsSchema,
+      tool_choice: "auto",
+    });
 
-        const assistantMessage = response.choices[0].message;
-        messages.push(assistantMessage); 
+    const assistantMessage = response.choices[0].message;
+    messages.push(assistantMessage);
 
-        // 2. Check if AI wants to use tools
-        if (assistantMessage.tool_calls) {
-            for (const toolCall of assistantMessage.tool_calls) {
-                const functionName = toolCall.function.name;
-                const args = JSON.parse(toolCall.function.arguments);
+    // 2. Check if AI wants to use tools
+    if (assistantMessage.tool_calls) {
+      for (const toolCall of assistantMessage.tool_calls) {
+        const functionName = toolCall.function.name;
+        const args = JSON.parse(toolCall.function.arguments);
 
-                console.log(`Executing Tool: ${functionName} for User: ${userId}`);
+        console.log(`Executing Tool: ${functionName} for User: ${userId}`);
 
-                // Execute Tool
-                let toolResult;
-                try {
-                    if (aiTools[functionName]) {
-                        toolResult = await aiTools[functionName]({ ...args, userId });
-                    } else {
-                        toolResult = { error: "Tool function not found." };
-                    }
-                } catch (err) {
-                    console.error(`Tool Error: ${err.message}`);
-                    toolResult = { error: "Failed to fetch data." };
-                }
-
-                messages.push({
-                    role: "tool",
-                    tool_call_id: toolCall.id,
-                    content: JSON.stringify(toolResult)
-                });
-            }
-
-            // 3. Second Call: Generate final answer
-            const finalResponse = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: messages
-            });
-
-            return finalResponse.choices[0].message.content;
+        // Execute Tool
+        let toolResult;
+        try {
+          if (aiTools[functionName]) {
+            toolResult = await aiTools[functionName]({ ...args, userId });
+          } else {
+            toolResult = { error: "Tool function not found." };
+          }
+        } catch (err) {
+          console.error(`Tool Error: ${err.message}`);
+          toolResult = { error: "Failed to fetch data." };
         }
 
-        return assistantMessage.content;
+        messages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(toolResult),
+        });
+      }
 
-    } catch (error) {
-        console.error("AI Agent Error:", error);
-        throw error; 
+      // 3. Second Call: Generate final answer
+      const finalResponse = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: messages,
+      });
+
+      return finalResponse.choices[0].message.content;
     }
+
+    return assistantMessage.content;
+  } catch (error) {
+    console.error("AI Agent Error:", error);
+    throw error;
+  }
 };
 
 module.exports = { chatWithAgent };
