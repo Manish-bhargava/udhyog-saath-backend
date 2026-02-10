@@ -1,5 +1,4 @@
 const User = require("../models/user"); 
-const redis = require("../config/redisClient"); 
 
 const isOnboarded = async (req, res, next) => {
   try {
@@ -11,10 +10,6 @@ const isOnboarded = async (req, res, next) => {
 
    
    
-    const cacheKey = `user:onboarding:${userId}`;
-
-
-    const cachedStatus = await redis.get(cacheKey);
    
 
       
@@ -41,9 +36,6 @@ const isOnboarded = async (req, res, next) => {
     }
 
 
-    const statusString = user.onboarding ? "true" : "false";
-    await redis.set(cacheKey, statusString, "EX", 3600);
-
             
     if (!user.onboarding) {
       return res.status(403).json({
@@ -56,7 +48,6 @@ const isOnboarded = async (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error("Redis/Middleware Error:", error);
 
     try {
         const userId = req.user?._id || req.user?.id;

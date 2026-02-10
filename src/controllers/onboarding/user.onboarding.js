@@ -1,7 +1,7 @@
 const Onboarding = require("../../models/onboarding");
 const User = require("../../models/user");
 const { uploadImage } = require("../../services/cloudinary");
-const redis = require("../../config/redisClient"); // IMPORT REDIS
+
 
 exports.userOnboarding = async (req, res) => {
   try {
@@ -58,7 +58,6 @@ exports.userOnboarding = async (req, res) => {
       await User.findByIdAndUpdate(userId, { onboarding: true });
 
   
-      await redis.del(`user:onboarding:${userId}`);
 
       return res.status(200).json({
         success: true,
@@ -97,7 +96,7 @@ exports.userOnboarding = async (req, res) => {
     );
 
    
-    await redis.del(`user:onboarding:${userId}`);
+
 
     res.status(201).json({
       success: true,
