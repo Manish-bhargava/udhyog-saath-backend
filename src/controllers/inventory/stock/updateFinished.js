@@ -4,7 +4,7 @@ exports.updateFinished = async (req, res) => {
   try {
     const userId = req.user._id;
     const { itemId } = req.params;
-    const { name, imageUrl, unit, costPrice, sellingPrice, reorderLevel, canBeSold, canBePurchased, canBeManufactured, isActive } = req.body;
+    const { name, unit, costPrice, sellingPrice, reorderLevel, canBeSold, canBePurchased, canBeManufactured, isActive } = req.body;
 
     // Validation: itemId required
     if (!itemId) {
@@ -65,6 +65,7 @@ exports.updateFinished = async (req, res) => {
       });
     }
 
+    const imageUrl = await fileUpload(req.file?.path) || item.imageUrl;
     // Update allowed fields
     if (name !== undefined) item.name = name.trim();
     if (imageUrl !== undefined) item.imageUrl = imageUrl;

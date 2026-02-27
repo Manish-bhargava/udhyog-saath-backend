@@ -7,9 +7,21 @@ const deleteFinished = require("../../../controllers/inventory/stock/deleteFinis
 const verify = require("../../../utils/auth");
 const isOnboarded = require("../../../utils/isOnboarded");
 
-stockRouter.post("/raw/add", verify, isOnboarded, addFinished);
-stockRouter.get("/raw/get", verify, isOnboarded, getFinished);
-stockRouter.put("/raw/update/:id", verify, isOnboarded, updateFinished);
-stockRouter.delete("/raw/delete/:id", verify, isOnboarded, deleteFinished);
+stockRouter.post(
+  "/finished/add",
+  verify,
+  uploads.single("productImg"),
+  isOnboarded,
+  addFinished,
+);
+stockRouter.get("/finished/get", verify, isOnboarded, getFinished);
+stockRouter.put(
+  "/finished/update/:id",
+  verify,
+  uploads.single("productImg"),
+  isOnboarded,
+  updateFinished,
+);
+stockRouter.delete("/finished/delete/:id", verify, isOnboarded, deleteFinished);
 
 module.exports = stockRouter;

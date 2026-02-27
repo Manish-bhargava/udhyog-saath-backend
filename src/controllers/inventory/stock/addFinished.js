@@ -2,7 +2,7 @@ const Item = require("../../../models/inventory/items.inventory");
 exports.addFinished = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { name, imageUrl, unit, costPrice, sellingPrice, reorderLevel, canBeSold, canBePurchased, canBeManufactured } = req.body;
+    const { name, unit, costPrice, sellingPrice, reorderLevel, canBeSold, canBePurchased, canBeManufactured } = req.body;
 
     // Validation: Required fields
     if (!name || !unit) {
@@ -43,6 +43,8 @@ exports.addFinished = async (req, res) => {
         message: "An item with this name already exists in your inventory."
       });
     }
+
+    const imageUrl = await fileUpload(req.file?.path) || null;
 
     // Create new finished item
     const newItem = new Item({
