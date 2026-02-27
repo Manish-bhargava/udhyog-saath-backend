@@ -1,6 +1,6 @@
-import { Item } from "../../../models/inventory/items.inventory.js";
+const Item = require("../../../models/inventory/items.inventory.js");
 
-export const getFinished = async (req, res) => {
+exports.getFinished = async (req, res) => {
   try {
     const { businessId } = req.params;
 

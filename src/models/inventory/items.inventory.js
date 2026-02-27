@@ -54,4 +54,5 @@ const itemSchema = new mongoose.Schema(
 
 itemSchema.index({ businessId: 1, name: 1 }, { unique: true });
 
-export const Item = mongoose.model("Item", itemSchema);
+const Item = mongoose.model("Item", itemSchema);
+module.exports = Item;

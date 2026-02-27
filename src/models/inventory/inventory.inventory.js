@@ -33,4 +33,4 @@ inventorySchema.index(
 
 const Inventory = mongoose.model("Inventory", inventorySchema);
 
-export default Inventory;
+module.exports = Inventory;
