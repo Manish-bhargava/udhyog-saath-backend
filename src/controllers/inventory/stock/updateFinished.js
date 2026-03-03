@@ -3,7 +3,7 @@ const Item = require("../../../models/inventory/items.inventory");
 exports.updateFinished = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { itemId } = req.params;
+    const itemId = req.params.id;
     const { name, unit, costPrice, sellingPrice, reorderLevel, canBeSold, canBePurchased, canBeManufactured, isActive } = req.body;
 
     // Validation: itemId required

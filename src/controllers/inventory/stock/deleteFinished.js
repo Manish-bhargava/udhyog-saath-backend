@@ -3,7 +3,7 @@ const Item = require("../../../models/inventory/items.inventory");
 exports.deleteFinished = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { itemId } = req.params;
+    const itemId  = req.params.id;
 
     // Validation: itemId is required
     if (!itemId) {
