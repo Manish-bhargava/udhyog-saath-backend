@@ -2,7 +2,7 @@ const Item = require("../../../models/inventory/items.inventory.js");
 
 exports.getFinished = async (req, res) => {
   try {
-    const { businessId } = req.params;
+    const businessId  = req.user._id;
 
     const finishedItems = await Item.find({
       businessId,
