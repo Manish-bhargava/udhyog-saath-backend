@@ -1,4 +1,5 @@
 const Item = require("../../../models/inventory/items.inventory");
+const { uploadImage } = require("../../../services/cloudinary");
 exports.addFinished = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -44,7 +45,7 @@ exports.addFinished = async (req, res) => {
       });
     }
 
-    const imageUrl = await fileUpload(req.file?.path) || null;
+    const imageUrl = await uploadImage(req.file?.path) || null;
 
     // Create new finished item
     const newItem = new Item({

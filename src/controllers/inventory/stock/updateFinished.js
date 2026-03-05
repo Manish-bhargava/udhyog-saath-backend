@@ -1,4 +1,5 @@
 const Item = require("../../../models/inventory/items.inventory");
+const { uploadImage } = require("../../../services/cloudinary");
 
 exports.updateFinished = async (req, res) => {
   try {
@@ -65,7 +66,7 @@ exports.updateFinished = async (req, res) => {
       });
     }
 
-    const imageUrl = await fileUpload(req.file?.path) || item.imageUrl;
+    const imageUrl = await uploadImage(req.file?.path) || item.imageUrl;
     // Update allowed fields
     if (name !== undefined) item.name = name.trim();
     if (imageUrl !== undefined) item.imageUrl = imageUrl;
