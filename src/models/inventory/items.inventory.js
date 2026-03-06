@@ -16,6 +16,10 @@ const itemSchema = new mongoose.Schema(
 
     imageUrl: String,
 
+    brand: String,
+    location: String,
+    weight: String,
+
     type: {
       type: String,
       enum: ["RAW", "FINISHED"],
