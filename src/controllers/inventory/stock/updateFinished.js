@@ -1,7 +1,9 @@
 const Item = require("../../../models/inventory/items.inventory");
 const { uploadImage } = require("../../../services/cloudinary");
+const fs = require("fs").promises;
 
 exports.updateFinished = async (req, res) => {
+  let shouldDeleteFile = true;
   try {
     const userId = req.user._id;
     const itemId = req.params.id;
@@ -95,6 +97,7 @@ exports.updateFinished = async (req, res) => {
     }
 
     const imageUrl = (await uploadImage(req.file?.path)) || item.imageUrl;
+
     // Update allowed fields
     if (name !== undefined) item.name = name.trim();
     if (imageUrl !== undefined) item.imageUrl = imageUrl;
@@ -114,6 +117,8 @@ exports.updateFinished = async (req, res) => {
     if (weight !== undefined) item.weight = weight.trim();
 
     await item.save();
+
+    shouldDeleteFile = false; // Success, don't delete the file
 
     res.status(200).json({
       success: true,
@@ -135,5 +140,13 @@ exports.updateFinished = async (req, res) => {
       message: "Server error while updating finished item",
       error: error.message,
     });
+  } finally {
+    if (shouldDeleteFile && req.file?.path) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error("Error deleting uploaded file:", unlinkError);
+      }
+    }
   }
 };

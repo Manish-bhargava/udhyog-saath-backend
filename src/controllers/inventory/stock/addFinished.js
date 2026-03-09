@@ -1,6 +1,9 @@
 const Item = require("../../../models/inventory/items.inventory");
 const { uploadImage } = require("../../../services/cloudinary");
+const fs = require("fs").promises;
+
 exports.addFinished = async (req, res) => {
+  let shouldDeleteFile = true;
   try {
     const userId = req.user._id;
     const {
@@ -89,6 +92,8 @@ exports.addFinished = async (req, res) => {
 
     await newItem.save();
 
+    shouldDeleteFile = false; // Success, don't delete the file
+
     res.status(201).json({
       success: true,
       message: "Finished item added successfully!",
@@ -110,5 +115,13 @@ exports.addFinished = async (req, res) => {
       message: "Server error while adding finished item",
       error: error.message,
     });
+  } finally {
+    if (shouldDeleteFile && req.file?.path) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error("Error deleting uploaded file:", unlinkError);
+      }
+    }
   }
 };

@@ -1,7 +1,9 @@
 const Item = require("../../../models/inventory/items.inventory");
 const { uploadImage } = require("../../../services/cloudinary");
+const fs = require("fs").promises;
 
 exports.addRaw = async (req, res) => {
+  let shouldDeleteFile = true;
   try {
     const userId = req.user._id;
     const {
@@ -86,6 +88,8 @@ exports.addRaw = async (req, res) => {
 
     await newItem.save();
 
+    shouldDeleteFile = false; // Success, don't delete the file
+
     res.status(201).json({
       success: true,
       message: "Raw material added successfully!",
@@ -106,5 +110,13 @@ exports.addRaw = async (req, res) => {
       message: "Server error while adding raw material",
       error: error.message,
     });
+  } finally {
+    if (shouldDeleteFile && req.file?.path) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error("Error deleting uploaded file:", unlinkError);
+      }
+    }
   }
 };
