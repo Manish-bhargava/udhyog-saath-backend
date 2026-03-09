@@ -1,5 +1,7 @@
 const Bill = require("../../models/bills"); 
 const Onboarding = require("../../models/onboarding"); 
+const Item = require("../../models/inventory/items.inventory");
+const { adjustInventory, getOrCreateDefaultWarehouse } = require("../../utils/inventory"); 
 
 exports.createBill = async (req, res) => {
     try {
@@ -118,6 +120,40 @@ exports.createBill = async (req, res) => {
         });
 
         await newBill.save();
+
+        // update inventory for pakka bill
+        if (billType === "pakka") {
+            try {
+                // ensure warehouse exists
+                const { _id: warehouseId } = await getOrCreateDefaultWarehouse(userId);
+
+                for (const prod of processedProducts) {
+                    // find corresponding item by name
+                    const item = await Item.findOne({
+                        businessId: userId,
+                        name: prod.name,
+                        type: "FINISHED",
+                    });
+                    if (!item) {
+                        console.warn(`No matching finished item found for product ${prod.name}`);
+                        continue;
+                    }
+
+                    // subtract quantity
+                    await adjustInventory({
+                        businessId: userId,
+                        warehouseId,
+                        itemId: item._id,
+                        qtyChange: -prod.quantity,
+                        transactionType: "SALE",
+                        referenceNote: `Invoice ${newBill.invoiceNumber}`,
+                    });
+                }
+            } catch (invErr) {
+                console.error("Inventory update error:", invErr);
+                // don't fail bill creation but warn
+            }
+        }
 
         // 7. SEND SUCCESS RESPONSE
         res.status(201).json({
