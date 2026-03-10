@@ -1,6 +1,7 @@
 const Bill = require("../../models/bills"); 
 const Onboarding = require("../../models/onboarding"); 
 const Item = require("../../models/inventory/items.inventory");
+const Warehouse = require("../../models/inventory/warehouse.inventory");
 const { adjustInventory, getOrCreateDefaultWarehouse } = require("../../utils/inventory"); 
 
 exports.createBill = async (req, res) => {
@@ -51,7 +52,8 @@ exports.createBill = async (req, res) => {
             buyer, 
             products, 
             gstPercentage = 0, 
-            discount = 0 
+            discount = 0,
+            warehouseId
         } = req.body;
 
         // A. Validate Products
@@ -116,7 +118,8 @@ exports.createBill = async (req, res) => {
             discount: Number(discount),
             subTotal: subTotal,
             taxAmount: taxAmount,
-            grandTotal: grandTotal
+            grandTotal: grandTotal,
+            warehouseId: warehouseId || null  // store warehouse info even if default
         });
 
         await newBill.save();
@@ -124,8 +127,26 @@ exports.createBill = async (req, res) => {
         // update inventory for pakka bill
         if (billType === "pakka") {
             try {
-                // ensure warehouse exists
-                const { _id: warehouseId } = await getOrCreateDefaultWarehouse(userId);
+                // determine which warehouse to use
+                let finalWarehouseId = warehouseId;
+
+                // if warehouseId provided, validate it belongs to this user
+                if (finalWarehouseId) {
+                    const warehouse = await Warehouse.findOne({
+                        _id: finalWarehouseId,
+                        businessId: userId
+                    });
+                    if (!warehouse) {
+                        console.warn(`Warehouse ${finalWarehouseId} not found for user`);
+                        // use default instead of failing
+                        const { _id } = await getOrCreateDefaultWarehouse(userId);
+                        finalWarehouseId = _id;
+                    }
+                } else {
+                    // use default warehouse
+                    const { _id } = await getOrCreateDefaultWarehouse(userId);
+                    finalWarehouseId = _id;
+                }
 
                 for (const prod of processedProducts) {
                     // find corresponding item by name
@@ -142,7 +163,7 @@ exports.createBill = async (req, res) => {
                     // subtract quantity
                     await adjustInventory({
                         businessId: userId,
-                        warehouseId,
+                        warehouseId: finalWarehouseId,
                         itemId: item._id,
                         qtyChange: -prod.quantity,
                         transactionType: "SALE",

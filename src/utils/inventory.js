@@ -3,6 +3,8 @@ const Transaction = require("../models/inventory/transaction.inventory");
 const Warehouse = require("../models/inventory/warehouse.inventory");
 
 // Ensure there is at least one warehouse for the business. If none exists, create a default one.
+
+//TODO: what if there are multiple warehouses and the prod is in some other warehouse.
 async function getOrCreateDefaultWarehouse(businessId) {
   let wh = await Warehouse.findOne({ businessId });
   if (!wh) {

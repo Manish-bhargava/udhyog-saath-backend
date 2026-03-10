@@ -19,6 +19,10 @@ const billSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    warehouseId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Warehouse"
+    },
     buyer: {
         clientName: { type: String, required: true },
         // Conditionally required fields
