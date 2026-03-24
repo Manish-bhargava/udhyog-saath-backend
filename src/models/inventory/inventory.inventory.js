@@ -23,6 +23,11 @@ const inventorySchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 0
+  },
+  reservedQuantity: {
+    type: Number,
+    required: true,
+    default: 0
   }
 }, { timestamps: true });
 

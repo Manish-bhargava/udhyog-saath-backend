@@ -2,6 +2,7 @@ const express = require("express");
 const stockRouter = express.Router();
 const {addFinished} = require("../../../controllers/inventory/stock/addFinished.js");
 const {getFinished} = require("../../../controllers/inventory/stock/getFinished.js");
+const { getWarehouseStockSummary } = require("../../../controllers/inventory/stock/getWarehouseStockSummary.js");
 const {updateFinished} = require("../../../controllers/inventory/stock/updateFinished.js");
 const {deleteFinished} = require("../../../controllers/inventory/stock/deleteFinished.js");
 
@@ -22,6 +23,12 @@ stockRouter.post(
   addFinished,
 );
 stockRouter.get("/finished/get", verify, isOnboarded, getFinished);
+stockRouter.get(
+  "/warehouse-summary",
+  verify,
+  isOnboarded,
+  getWarehouseStockSummary,
+);
 stockRouter.put(
   "/finished/update/:id",
   verify,

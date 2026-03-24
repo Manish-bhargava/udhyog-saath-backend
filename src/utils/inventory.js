@@ -45,12 +45,16 @@ async function adjustInventory({
   // fetch or create inventory record
   let inv = await Inventory.findOne({ businessId, warehouseId, itemId });
   if (!inv) {
-    inv = new Inventory({ businessId, warehouseId, itemId, quantity: 0 });
+    inv = new Inventory({ businessId, warehouseId, itemId, quantity: 0, reservedQuantity: 0 });
   }
 
   const newQty = inv.quantity + qtyChange;
   if (newQty < 0) {
     throw new Error("Insufficient stock for item");
+  }
+  // also ensure we never go below reserved
+  if (newQty < (inv.reservedQuantity || 0)) {
+    throw new Error("Insufficient available stock (reserved exceeds remaining)");
   }
   inv.quantity = newQty;
   await inv.save();
@@ -68,4 +72,84 @@ async function adjustInventory({
   return { inventory: inv, transaction: trans };
 }
 
-module.exports = { getOrCreateDefaultWarehouse, adjustInventory };
+/**
+ * Reserve stock for a Kaccha bill. This does NOT change total quantity,
+ * it increases reservedQuantity, reducing availability.
+ */
+async function reserveInventory({ businessId, warehouseId, itemId, qty, referenceNote }) {
+  if (!businessId || !itemId || typeof qty !== "number") {
+    throw new Error("Missing parameters for reserveInventory");
+  }
+  if (qty <= 0) return null;
+
+  if (!warehouseId) {
+    const wh = await getOrCreateDefaultWarehouse(businessId);
+    warehouseId = wh._id;
+  }
+
+  let inv = await Inventory.findOne({ businessId, warehouseId, itemId });
+  if (!inv) {
+    inv = new Inventory({ businessId, warehouseId, itemId, quantity: 0, reservedQuantity: 0 });
+  }
+
+  const available = inv.quantity - (inv.reservedQuantity || 0);
+  if (available < qty) {
+    throw new Error("Insufficient available stock to reserve");
+  }
+
+  inv.reservedQuantity = (inv.reservedQuantity || 0) + qty;
+  await inv.save();
+
+  const trans = new Transaction({
+    businessId,
+    warehouseId,
+    type: "ADJUSTMENT",
+    items: [{ itemId, quantity: qty, direction: "OUT" }],
+    referenceNote: referenceNote ? `RESERVE: ${referenceNote}` : "RESERVE",
+  });
+  await trans.save();
+
+  return { inventory: inv, transaction: trans };
+}
+
+/**
+ * Release previously reserved stock (e.g. delete kaccha, reduce qty, or convert).
+ */
+async function releaseReserved({ businessId, warehouseId, itemId, qty, referenceNote }) {
+  if (!businessId || !itemId || typeof qty !== "number") {
+    throw new Error("Missing parameters for releaseReserved");
+  }
+  if (qty <= 0) return null;
+
+  if (!warehouseId) {
+    const wh = await getOrCreateDefaultWarehouse(businessId);
+    warehouseId = wh._id;
+  }
+
+  let inv = await Inventory.findOne({ businessId, warehouseId, itemId });
+  if (!inv) {
+    // nothing reserved, nothing to release
+    return null;
+  }
+
+  const currentReserved = inv.reservedQuantity || 0;
+  if (currentReserved < qty) {
+    throw new Error("Cannot release more than reserved");
+  }
+
+  inv.reservedQuantity = currentReserved - qty;
+  await inv.save();
+
+  const trans = new Transaction({
+    businessId,
+    warehouseId,
+    type: "ADJUSTMENT",
+    items: [{ itemId, quantity: qty, direction: "IN" }],
+    referenceNote: referenceNote ? `RELEASE: ${referenceNote}` : "RELEASE",
+  });
+  await trans.save();
+
+  return { inventory: inv, transaction: trans };
+}
+
+module.exports = { getOrCreateDefaultWarehouse, adjustInventory, reserveInventory, releaseReserved };

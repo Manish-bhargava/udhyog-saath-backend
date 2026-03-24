@@ -1,4 +1,5 @@
 const Item = require("../../../models/inventory/items.inventory");
+const Warehouse = require("../../../models/inventory/warehouse.inventory");
 const { uploadImage } = require("../../../services/cloudinary");
 const fs = require("fs").promises;
 
@@ -20,6 +21,7 @@ exports.updateFinished = async (req, res) => {
       canBePurchased,
       canBeManufactured,
       isActive,
+      warehouseId,
     } = req.body;
 
     // Validation: itemId required
@@ -31,7 +33,11 @@ exports.updateFinished = async (req, res) => {
     }
 
     // Find item by ID and ensure it belongs to the user
-    const item = await Item.findOne({ _id: itemId, businessId: userId });
+    const item = await Item.findOne({
+      _id: itemId,
+      businessId: userId,
+      type: "FINISHED",
+    });
     if (!item) {
       return res.status(404).json({
         success: false,
@@ -50,16 +56,40 @@ exports.updateFinished = async (req, res) => {
       });
     }
 
-    // Check if updated name already exists for this business
-    if (name && name.trim() !== item.name) {
+    let nextWarehouseId = item.warehouseId;
+    if (warehouseId !== undefined && warehouseId !== null && warehouseId !== "") {
+      const wh = await Warehouse.findOne({
+        _id: warehouseId,
+        businessId: userId,
+        isActive: true,
+      });
+      if (!wh) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid warehouse for this business.",
+        });
+      }
+      nextWarehouseId = wh._id;
+    }
+
+    const nextName = name !== undefined ? name.trim() : item.name;
+    const whChanging =
+      warehouseId !== undefined &&
+      String(nextWarehouseId || "") !== String(item.warehouseId || "");
+    const nameChanging = name !== undefined && name.trim() !== item.name;
+    if (nameChanging || whChanging) {
       const existingItem = await Item.findOne({
         businessId: userId,
-        name: name.trim(),
+        name: nextName,
+        type: "FINISHED",
+        warehouseId: nextWarehouseId,
+        _id: { $ne: item._id },
       });
       if (existingItem) {
         return res.status(409).json({
           success: false,
-          message: "An item with this name already exists in your inventory.",
+          message:
+            "Another finished product with this name already exists in that warehouse.",
         });
       }
     }
@@ -115,6 +145,7 @@ exports.updateFinished = async (req, res) => {
     if (brand !== undefined) item.brand = brand.trim();
     if (location !== undefined) item.location = location.trim();
     if (weight !== undefined) item.weight = weight.trim();
+    if (warehouseId !== undefined) item.warehouseId = nextWarehouseId;
 
     await item.save();
 
@@ -131,7 +162,8 @@ exports.updateFinished = async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: "An item with this name already exists in your inventory.",
+        message:
+          "Another finished product with this name already exists. Choose a different name.",
       });
     }
 

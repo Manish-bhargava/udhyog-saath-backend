@@ -1,6 +1,11 @@
 // ... existing imports
 const Bill = require("../../models/bills"); // Adjust path as needed
 const mongoose = require("mongoose");
+const { adjustInventory, releaseReserved } = require("../../utils/inventory");
+const {
+  resolveFinishedItem,
+  resolveLineWarehouseId,
+} = require("../../utils/billInventory");
 exports.convertToPakka = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -86,6 +91,35 @@ exports.convertToPakka = async (req, res) => {
     bill.grandTotal = newGrandTotal;
 
     await bill.save();
+
+    try {
+      for (const prod of bill.products || []) {
+        const item = await resolveFinishedItem(userId, prod);
+        if (!item) continue;
+
+        const lineWh = await resolveLineWarehouseId(userId, prod, bill.warehouseId);
+        const qty = Number(prod.quantity) || 0;
+
+        await releaseReserved({
+          businessId: userId,
+          warehouseId: lineWh,
+          itemId: item._id,
+          qty,
+          referenceNote: `Convert ${bill.invoiceNumber}`,
+        });
+
+        await adjustInventory({
+          businessId: userId,
+          warehouseId: lineWh,
+          itemId: item._id,
+          qtyChange: -qty,
+          transactionType: "SALE",
+          referenceNote: `Converted to Pakka ${bill.invoiceNumber}`,
+        });
+      }
+    } catch (invErr) {
+      console.error("Inventory conversion error:", invErr);
+    }
 
     res.status(200).json({
       success: true,
