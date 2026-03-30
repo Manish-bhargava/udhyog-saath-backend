@@ -1,6 +1,8 @@
 const Item = require("../../../models/inventory/items.inventory");
 const { uploadImage } = require("../../../services/cloudinary");
 const fs = require("fs").promises;
+const Warehouse = require("../../../models/inventory/warehouse.inventory");
+const { adjustInventory, getOrCreateDefaultWarehouse } = require("../../../utils/inventory");
 
 exports.addFinished = async (req, res) => {
   let shouldDeleteFile = true;
@@ -11,10 +13,12 @@ exports.addFinished = async (req, res) => {
       unit,
       costPrice,
       sellingPrice,
+      quantity,
       reorderLevel,
       location,
       weight,
       brand,
+      warehouseId,
       canBeSold,
       canBePurchased,
       canBeManufactured,
@@ -57,21 +61,32 @@ exports.addFinished = async (req, res) => {
       });
     }
 
-    // Check if item already exists for this business
+    let catalogWarehouseId = null;
+    if (warehouseId) {
+      const wh = await Warehouse.findOne({ _id: warehouseId, businessId: userId, isActive: true });
+      if (wh) catalogWarehouseId = wh._id;
+    }
+    if (!catalogWarehouseId) {
+      const { _id } = await getOrCreateDefaultWarehouse(userId);
+      catalogWarehouseId = _id;
+    }
+
     const existingItem = await Item.findOne({
       businessId: userId,
       name: name.trim(),
+      type: "FINISHED",
+      warehouseId: catalogWarehouseId,
     });
     if (existingItem) {
       return res.status(409).json({
         success: false,
-        message: "An item with this name already exists in your inventory.",
+        message:
+          "A finished product with this name already exists in this warehouse. Pick another warehouse or edit the existing item.",
       });
     }
 
     const imageUrl = (await uploadImage(req.file?.path)) || null;
 
-    // Create new finished item
     const newItem = new Item({
       businessId: userId,
       name: name.trim(),
@@ -88,9 +103,26 @@ exports.addFinished = async (req, res) => {
       canBePurchased: canBePurchased || false,
       canBeManufactured: canBeManufactured || false,
       isActive: true,
+      warehouseId: catalogWarehouseId,
     });
 
     await newItem.save();
+
+    try {
+      const qtyNum = quantity !== undefined && quantity !== "" ? Number(quantity) : 0;
+      if (!Number.isNaN(qtyNum) && qtyNum > 0) {
+        await adjustInventory({
+          businessId: userId,
+          warehouseId: catalogWarehouseId,
+          itemId: newItem._id,
+          qtyChange: qtyNum,
+          transactionType: "PURCHASE",
+          referenceNote: `Initial stock for ${newItem.name}`,
+        });
+      }
+    } catch (invErr) {
+      console.error("Initial inventory init error:", invErr);
+    }
 
     shouldDeleteFile = false; // Success, don't delete the file
 
@@ -106,7 +138,8 @@ exports.addFinished = async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: "An item with this name already exists in your inventory.",
+        message:
+          "A finished product with this name already exists. Use a different name or edit the existing item.",
       });
     }
 

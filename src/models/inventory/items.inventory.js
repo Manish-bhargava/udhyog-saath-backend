@@ -48,6 +48,12 @@ const itemSchema = new mongoose.Schema(
       default: 0,
     },
 
+    warehouseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse",
+      default: null,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
@@ -56,7 +62,8 @@ const itemSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-itemSchema.index({ businessId: 1, name: 1 }, { unique: true });
+// Same name allowed in different warehouses (per type).
+itemSchema.index({ businessId: 1, name: 1, type: 1, warehouseId: 1 }, { unique: true });
 
 const Item = mongoose.model("Item", itemSchema);
 module.exports = Item;

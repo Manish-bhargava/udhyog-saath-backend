@@ -1,4 +1,23 @@
 const Bill = require("../../models/bills");
+const { reserveInventory, releaseReserved } = require("../../utils/inventory");
+const {
+  resolveFinishedItem,
+  resolveLineWarehouseId,
+  lineAggregateKey,
+} = require("../../utils/billInventory");
+
+async function aggregateReserveQuantities(productLines, userId, billWarehouseId) {
+  const map = new Map();
+  for (const p of productLines || []) {
+    const item = await resolveFinishedItem(userId, p);
+    if (!item) continue;
+    const wh = await resolveLineWarehouseId(userId, p, billWarehouseId);
+    const k = lineAggregateKey(item._id, wh);
+    const qty = Number(p.quantity) || 0;
+    map.set(k, (map.get(k) || 0) + qty);
+  }
+  return map;
+}
 
 exports.updateKacchaBill = async (req, res) => {
     try {
@@ -26,18 +45,20 @@ exports.updateKacchaBill = async (req, res) => {
         let newSubTotal = 0;
         
         // Recalculate Subtotal based on (Rate * Quantity)
-        const processedProducts = productsToUse.map(item => {
+        const processedProducts = productsToUse.map((item) => {
             const rate = Number(item.rate);
             const quantity = Number(item.quantity);
             const amount = rate * quantity;
-            
+
             newSubTotal += amount;
 
-            return { 
-                name: item.name, 
-                rate: rate, 
-                quantity: quantity, 
-                amount: amount 
+            return {
+                name: item.name,
+                rate,
+                quantity,
+                amount,
+                inventoryItemId: item.inventoryItemId || undefined,
+                warehouseId: item.warehouseId || undefined,
             };
         });
 
@@ -80,6 +101,48 @@ exports.updateKacchaBill = async (req, res) => {
             { $set: updatePayload },
             { new: true, runValidators: true } // Returns the NEW object, runs checks
         );
+
+        if (existingBill.billType === "kaccha") {
+            try {
+                const oldAgg = await aggregateReserveQuantities(
+                    existingBill.products,
+                    userId,
+                    existingBill.warehouseId,
+                );
+                const newAgg = await aggregateReserveQuantities(
+                    processedProducts,
+                    userId,
+                    existingBill.warehouseId,
+                );
+                const keys = new Set([...oldAgg.keys(), ...newAgg.keys()]);
+                for (const k of keys) {
+                    const delta = (newAgg.get(k) || 0) - (oldAgg.get(k) || 0);
+                    if (delta === 0) continue;
+                    const at = k.lastIndexOf("@");
+                    const itemId = k.slice(0, at);
+                    const whId = k.slice(at + 1);
+                    if (delta > 0) {
+                        await reserveInventory({
+                            businessId: userId,
+                            warehouseId: whId,
+                            itemId,
+                            qty: delta,
+                            referenceNote: `Update ${existingBill.invoiceNumber}`,
+                        });
+                    } else {
+                        await releaseReserved({
+                            businessId: userId,
+                            warehouseId: whId,
+                            itemId,
+                            qty: Math.abs(delta),
+                            referenceNote: `Update ${existingBill.invoiceNumber}`,
+                        });
+                    }
+                }
+            } catch (invErr) {
+                console.error("Inventory reservation update error:", invErr);
+            }
+        }
 
         res.status(200).json({
             success: true,

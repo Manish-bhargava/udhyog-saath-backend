@@ -42,7 +42,9 @@ const billSchema = new mongoose.Schema({
         name: { type: String, required: true },
         rate: { type: Number, required: true },
         quantity: { type: Number, required: true },
-        amount: { type: Number, required: true } 
+        amount: { type: Number, required: true },
+        inventoryItemId: { type: mongoose.Schema.Types.ObjectId, ref: "Item" },
+        warehouseId: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse" },
     }],
     gstPercentage: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },

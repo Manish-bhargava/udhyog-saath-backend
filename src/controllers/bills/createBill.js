@@ -1,8 +1,10 @@
 const Bill = require("../../models/bills"); 
 const Onboarding = require("../../models/onboarding"); 
-const Item = require("../../models/inventory/items.inventory");
-const Warehouse = require("../../models/inventory/warehouse.inventory");
-const { adjustInventory, getOrCreateDefaultWarehouse } = require("../../utils/inventory"); 
+const { adjustInventory, reserveInventory } = require("../../utils/inventory"); 
+const {
+  resolveFinishedItem,
+  resolveLineWarehouseId,
+} = require("../../utils/billInventory");
 
 exports.createBill = async (req, res) => {
     try {
@@ -64,17 +66,19 @@ exports.createBill = async (req, res) => {
         // B. Calculate Product Totals
         let subTotal = 0;
         
-        const processedProducts = products.map(item => {
+        const processedProducts = products.map((item) => {
             const rate = Number(item.rate);
             const quantity = Number(item.quantity);
             const amount = rate * quantity;
-            subTotal += amount; 
-            
-            return { 
+            subTotal += amount;
+
+            return {
                 name: item.name,
-                rate: rate,
-                quantity: quantity,
-                amount: amount
+                rate,
+                quantity,
+                amount,
+                inventoryItemId: item.inventoryItemId || undefined,
+                warehouseId: item.warehouseId || undefined,
             };
         });
 
@@ -124,46 +128,28 @@ exports.createBill = async (req, res) => {
 
         await newBill.save();
 
-        // update inventory for pakka bill
+        // update inventory for bills:
+        // - pakka: deduct stock immediately
+        // - kaccha: reserve stock (reduce availability)
         if (billType === "pakka") {
             try {
-                // determine which warehouse to use
-                let finalWarehouseId = warehouseId;
-
-                // if warehouseId provided, validate it belongs to this user
-                if (finalWarehouseId) {
-                    const warehouse = await Warehouse.findOne({
-                        _id: finalWarehouseId,
-                        businessId: userId
-                    });
-                    if (!warehouse) {
-                        console.warn(`Warehouse ${finalWarehouseId} not found for user`);
-                        // use default instead of failing
-                        const { _id } = await getOrCreateDefaultWarehouse(userId);
-                        finalWarehouseId = _id;
-                    }
-                } else {
-                    // use default warehouse
-                    const { _id } = await getOrCreateDefaultWarehouse(userId);
-                    finalWarehouseId = _id;
-                }
-
-                for (const prod of processedProducts) {
-                    // find corresponding item by name
-                    const item = await Item.findOne({
-                        businessId: userId,
+                for (let i = 0; i < processedProducts.length; i++) {
+                    const prod = processedProducts[i];
+                    const rawLine = products[i] || {};
+                    const item = await resolveFinishedItem(userId, {
+                        ...rawLine,
                         name: prod.name,
-                        type: "FINISHED",
+                        inventoryItemId: prod.inventoryItemId,
+                        warehouseId: prod.warehouseId,
                     });
                     if (!item) {
-                        console.warn(`No matching finished item found for product ${prod.name}`);
+                        console.warn(`No matching finished item for product ${prod.name}`);
                         continue;
                     }
-
-                    // subtract quantity
+                    const lineWh = await resolveLineWarehouseId(userId, rawLine, warehouseId);
                     await adjustInventory({
                         businessId: userId,
-                        warehouseId: finalWarehouseId,
+                        warehouseId: lineWh,
                         itemId: item._id,
                         qtyChange: -prod.quantity,
                         transactionType: "SALE",
@@ -172,7 +158,30 @@ exports.createBill = async (req, res) => {
                 }
             } catch (invErr) {
                 console.error("Inventory update error:", invErr);
-                // don't fail bill creation but warn
+            }
+        } else if (billType === "kaccha") {
+            try {
+                for (let i = 0; i < processedProducts.length; i++) {
+                    const prod = processedProducts[i];
+                    const rawLine = products[i] || {};
+                    const item = await resolveFinishedItem(userId, {
+                        ...rawLine,
+                        name: prod.name,
+                        inventoryItemId: prod.inventoryItemId,
+                        warehouseId: prod.warehouseId,
+                    });
+                    if (!item) continue;
+                    const lineWh = await resolveLineWarehouseId(userId, rawLine, warehouseId);
+                    await reserveInventory({
+                        businessId: userId,
+                        warehouseId: lineWh,
+                        itemId: item._id,
+                        qty: prod.quantity,
+                        referenceNote: `Kaccha ${newBill.invoiceNumber}`,
+                    });
+                }
+            } catch (invErr) {
+                console.error("Inventory reserve error:", invErr);
             }
         }
 

@@ -1,4 +1,9 @@
 const Bill = require("../../models/bills"); // Make sure path is correct
+const { adjustInventory, releaseReserved } = require("../../utils/inventory");
+const {
+  resolveFinishedItem,
+  resolveLineWarehouseId,
+} = require("../../utils/billInventory");
 
 exports.deleteBill = async (req, res) => {
     try {
@@ -31,6 +36,39 @@ exports.deleteBill = async (req, res) => {
                 success: false, 
                 message: "Bill not found or you are not authorized to delete this bill." 
             });
+        }
+
+        try {
+          for (const prod of deletedBill.products || []) {
+            const item = await resolveFinishedItem(userId, prod);
+            if (!item) continue;
+
+            const qty = Number(prod.quantity) || 0;
+            if (qty <= 0) continue;
+
+            const lineWh = await resolveLineWarehouseId(userId, prod, deletedBill.warehouseId);
+
+            if (deletedBill.billType === "pakka") {
+              await adjustInventory({
+                businessId: userId,
+                warehouseId: lineWh,
+                itemId: item._id,
+                qtyChange: qty,
+                transactionType: "ADJUSTMENT",
+                referenceNote: `Revert delete ${deletedBill.invoiceNumber}`,
+              });
+            } else if (deletedBill.billType === "kaccha") {
+              await releaseReserved({
+                businessId: userId,
+                warehouseId: lineWh,
+                itemId: item._id,
+                qty,
+                referenceNote: `Delete ${deletedBill.invoiceNumber}`,
+              });
+            }
+          }
+        } catch (invErr) {
+          console.error("Inventory delete revert error:", invErr);
         }
 
         // 5. SEND SUCCESS RESPONSE
