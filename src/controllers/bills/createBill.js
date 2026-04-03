@@ -55,7 +55,9 @@ exports.createBill = async (req, res) => {
             products, 
             gstPercentage = 0, 
             discount = 0,
-            warehouseId
+            warehouseId,
+            invoiceDate: requestedInvoiceDate,
+            billDate: requestedBillDate
         } = req.body;
 
         // A. Validate Products
@@ -87,6 +89,10 @@ exports.createBill = async (req, res) => {
         const taxAmount = (taxableAmount * Number(gstPercentage)) / 100;
         const grandTotal = taxableAmount + taxAmount;
 
+        const invoiceDateInput = requestedInvoiceDate ?? requestedBillDate;
+        const parsedInvoiceDate = invoiceDateInput ? new Date(invoiceDateInput) : new Date();
+        const invoiceDate = Number.isNaN(parsedInvoiceDate.getTime()) ? new Date() : parsedInvoiceDate;
+
         // ============================================================
         // 5. GENERATE SEQUENTIAL INVOICE NUMBER (FIXED)
         // ============================================================
@@ -114,7 +120,7 @@ exports.createBill = async (req, res) => {
             user: userId,
             billType: billType,
             invoiceNumber: nextInvoiceNumber, // Now it is 1, 2, 3...
-            invoiceDate: Date.now(),
+            invoiceDate: invoiceDate,
             sellerDetails: sellerDetailsSnapshot, // Ensure Schema has this field!
             buyer: buyer,
             products: processedProducts,

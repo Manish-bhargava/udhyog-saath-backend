@@ -12,7 +12,13 @@ exports.convertToPakka = async (req, res) => {
     console.log("billId param:", req.params.id);
     console.log("type:", typeof req.params.id);
     const billId = new mongoose.Types.ObjectId(req.params.id);
-    const { clientAddress, clientGst, gstPercentage } = req.body;
+    const {
+      clientAddress,
+      clientGst,
+      gstPercentage,
+      invoiceDate: requestedInvoiceDate,
+      billDate: requestedBillDate,
+    } = req.body;
 
     // 1. FIND THE EXISTING KACCHA BILL
     const bill = await Bill.findOne({ _id: billId, user: userId });
@@ -76,10 +82,14 @@ exports.convertToPakka = async (req, res) => {
     const newTaxAmount = (taxableAmount * newGstPercentage) / 100;
     const newGrandTotal = taxableAmount + newTaxAmount;
 
+    const invoiceDateInput = requestedInvoiceDate ?? requestedBillDate;
+    const parsedInvoiceDate = invoiceDateInput ? new Date(invoiceDateInput) : bill.invoiceDate;
+    const invoiceDate = Number.isNaN(parsedInvoiceDate.getTime()) ? bill.invoiceDate : parsedInvoiceDate;
+
     // 5. UPDATE THE DOCUMENT
     bill.billType = "pakka";
     bill.invoiceNumber = nextInvoiceNumber; // Assign new ID
-    bill.invoiceDate = Date.now(); // Update date to today
+    bill.invoiceDate = invoiceDate;
 
     // Update Buyer Details
     bill.buyer.clientAddress = finalAddress;
