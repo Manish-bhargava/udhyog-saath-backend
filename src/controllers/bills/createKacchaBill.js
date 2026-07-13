@@ -1,5 +1,6 @@
 const Bill = require("../../models/bills");
 const Onboarding = require("../../models/onboarding");
+const { resolveBillDate } = require("../../utils/billDate");
 
 exports.createBill = async (req, res) => {
   try {
@@ -74,8 +75,6 @@ exports.createBill = async (req, res) => {
       notes,
       gstPercentage = 0, // This will be ignored for Kaccha
       discount = 0, // This is the percentage (e.g., 5.0)
-      invoiceDate: requestedInvoiceDate,
-      billDate: requestedBillDate,
     } = req.body;
 
     if (!products || products.length === 0) {
@@ -117,9 +116,7 @@ exports.createBill = async (req, res) => {
     // C. Grand Total
     const grandTotal = taxableValue + taxAmount;
 
-    const invoiceDateInput = requestedInvoiceDate ?? requestedBillDate;
-    const parsedInvoiceDate = invoiceDateInput ? new Date(invoiceDateInput) : new Date();
-    const invoiceDate = Number.isNaN(parsedInvoiceDate.getTime()) ? new Date() : parsedInvoiceDate;
+    const invoiceDate = resolveBillDate(req.body);
 
     // 7. Generate Invoice Number
     // KACH for Kaccha, INV for Pakka

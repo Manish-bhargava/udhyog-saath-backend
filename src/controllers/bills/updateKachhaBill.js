@@ -5,6 +5,7 @@ const {
   resolveLineWarehouseId,
   lineAggregateKey,
 } = require("../../utils/billInventory");
+const { resolveBillDate } = require("../../utils/billDate");
 
 async function aggregateReserveQuantities(productLines, userId, billWarehouseId) {
   const map = new Map();
@@ -35,7 +36,11 @@ exports.updateKacchaBill = async (req, res) => {
         const { 
             buyer,           // Object { clientName, clientAddress, clientGst }
             products,        // Array of objects [{name, rate, quantity}]
-            discount = 0     // Percentage (Default to 0 if not sent)
+            discount = 0,    // Percentage (Default to 0 if not sent)
+            invoiceDate,
+            billDate,
+            requestedInvoiceDate,
+            requestedBillDate,
         } = req.body;
 
         // 3. CALCULATE NEW MATH
@@ -84,6 +89,11 @@ exports.updateKacchaBill = async (req, res) => {
             taxAmount: taxAmount,
             grandTotal: grandTotal
         };
+
+        updatePayload.invoiceDate = resolveBillDate(
+            { invoiceDate, billDate, requestedInvoiceDate, requestedBillDate },
+            { fallbackDate: existingBill.invoiceDate },
+        );
 
         // Handle Buyer Details (Only update if provided)
         if (buyer) {

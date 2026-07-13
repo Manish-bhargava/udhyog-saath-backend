@@ -5,6 +5,7 @@ const {
   resolveFinishedItem,
   resolveLineWarehouseId,
 } = require("../../utils/billInventory");
+const { resolveBillDate } = require("../../utils/billDate");
 
 exports.createBill = async (req, res) => {
     try {
@@ -55,9 +56,7 @@ exports.createBill = async (req, res) => {
             products, 
             gstPercentage = 0, 
             discount = 0,
-            warehouseId,
-            invoiceDate: requestedInvoiceDate,
-            billDate: requestedBillDate
+            warehouseId
         } = req.body;
 
         // A. Validate Products
@@ -89,9 +88,7 @@ exports.createBill = async (req, res) => {
         const taxAmount = (taxableAmount * Number(gstPercentage)) / 100;
         const grandTotal = taxableAmount + taxAmount;
 
-        const invoiceDateInput = requestedInvoiceDate ?? requestedBillDate;
-        const parsedInvoiceDate = invoiceDateInput ? new Date(invoiceDateInput) : new Date();
-        const invoiceDate = Number.isNaN(parsedInvoiceDate.getTime()) ? new Date() : parsedInvoiceDate;
+        const invoiceDate = resolveBillDate(req.body);
 
         // ============================================================
         // 5. GENERATE SEQUENTIAL INVOICE NUMBER (FIXED)

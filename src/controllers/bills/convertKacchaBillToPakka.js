@@ -6,6 +6,7 @@ const {
   resolveFinishedItem,
   resolveLineWarehouseId,
 } = require("../../utils/billInventory");
+const { resolveBillDate } = require("../../utils/billDate");
 exports.convertToPakka = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -16,8 +17,6 @@ exports.convertToPakka = async (req, res) => {
       clientAddress,
       clientGst,
       gstPercentage,
-      invoiceDate: requestedInvoiceDate,
-      billDate: requestedBillDate,
     } = req.body;
 
     // 1. FIND THE EXISTING KACCHA BILL
@@ -82,9 +81,7 @@ exports.convertToPakka = async (req, res) => {
     const newTaxAmount = (taxableAmount * newGstPercentage) / 100;
     const newGrandTotal = taxableAmount + newTaxAmount;
 
-    const invoiceDateInput = requestedInvoiceDate ?? requestedBillDate;
-    const parsedInvoiceDate = invoiceDateInput ? new Date(invoiceDateInput) : bill.invoiceDate;
-    const invoiceDate = Number.isNaN(parsedInvoiceDate.getTime()) ? bill.invoiceDate : parsedInvoiceDate;
+    const invoiceDate = resolveBillDate(req.body, { fallbackDate: bill.invoiceDate });
 
     // 5. UPDATE THE DOCUMENT
     bill.billType = "pakka";
