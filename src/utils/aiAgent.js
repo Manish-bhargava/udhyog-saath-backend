@@ -68,16 +68,16 @@ const toolsSchema = [
     function: {
       name: "get_monthly_comparison",
       description: "Compare sales between months.",
-    },
-    parameters: {
-      type: "object",
-      properties: {
-        userId: {
-          type: "string",
-          description: "User ID of the business owner",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID of the business owner",
+          },
         },
+        required: ["userId"],
       },
-      required: ["userId"],
     },
   },
   {
@@ -85,16 +85,16 @@ const toolsSchema = [
     function: {
       name: "get_tax_summary",
       description: "Get total GST collected.",
-    },
-    parameters: {
-      type: "object",
-      properties: {
-        userId: {
-          type: "string",
-          description: "User ID of the business owner",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID of the business owner",
+          },
         },
+        required: ["userId"],
       },
-      required: ["userId"],
     },
   },
   {
@@ -102,16 +102,16 @@ const toolsSchema = [
     function: {
       name: "get_top_products",
       description: "Identify top 5 selling products.",
-    },
-    parameters: {
-      type: "object",
-      properties: {
-        userId: {
-          type: "string",
-          description: "User ID of the business owner",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID of the business owner",
+          },
         },
+        required: ["userId"],
       },
-      required: ["userId"],
     },
   },
 ];
