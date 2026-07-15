@@ -41,7 +41,7 @@ const googleLogin = async (req, res) => {
         name: name,
         email: email,
         password: randomPassword, // Satisfies "required: true"
-        onboarding: true,         // Mark as needing onboarding
+        onboarding: false,        // New user still needs to complete business onboarding
         // plan & aiCredits will use your Schema defaults ("free", limit: 2)
       });
       
