@@ -17,6 +17,7 @@ app.use(express.static("uploads"));
 app.use(cookieParser());
 
 app.use('/api',apiRouter);
+app.use("/health",(req,res)=>{res.send("server is up and running ")});
 app.listen(port,async (req,res)=>{
    await connectToDatabase();
     
